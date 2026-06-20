@@ -23,7 +23,6 @@ namespace sv::sorting {
             m_frames.push_back({temp, {i, -1}, ops});
         }
 
-        // Zabezpieczenie przed zbyt dużą tablicą zliczającą (dla prostoty wizualizacji)
         if (max_val > 1000) max_val = 1000; 
 
         std::vector<int> count(max_val + 1, 0);
@@ -41,15 +40,21 @@ namespace sv::sorting {
             count[i] += count[i - 1];
         }
 
+        // NAPRAWIONY FRAGMENT: Tworzymy niezmienne źródło (source), z którego tylko czytamy
+        std::vector<int> source = temp;
+
         // Budowanie tablicy wyjściowej
-        for (int i = temp.size() - 1; i >= 0; i--) {
+        for (int i = source.size() - 1; i >= 0; i--) {
             ops++;
-            output[count[temp[i]] - 1] = temp[i];
-            count[temp[i]]--;
+            int val = source[i];
+            int pos = count[val] - 1;
             
-            // Do wizualizacji pokazujemy jak tablica wejściowa zamienia się w wyjściową
-            temp[count[temp[i]]] = temp[i]; 
-            m_frames.push_back({temp, {count[temp[i]], -1}, ops});
+            output[pos] = val;
+            count[val]--;
+            
+            // Do wizualizacji bezpiecznie modyfikujemy temp
+            temp[pos] = val; 
+            m_frames.push_back({temp, {pos, -1}, ops});
         }
 
         temp = output;
@@ -66,7 +71,7 @@ namespace sv::sorting {
     const std::vector<int>& CountingSort::getData() const { return m_frames.empty() ? m_currentData : m_frames[m_currentFrame].data; }
     std::pair<int, int> CountingSort::getHighlightedIndices() const { return m_frames.empty() || m_finished ? std::pair<int,int>{-1, -1} : m_frames[m_currentFrame].highlighted; }
     int CountingSort::getComparisonsCount() const { return m_frames.empty() ? 0 : m_frames[m_currentFrame].ops; }
-    int CountingSort::getSwapsCount() const { return 0; } // Counting sort nie wykonuje zamian
+    int CountingSort::getSwapsCount() const { return 0; }
     std::string CountingSort::getName() const { return "Counting Sort"; }
     std::string CountingSort::getComplexityBest() const { return "O(n + k)"; }
     std::string CountingSort::getComplexityAverage() const { return "O(n + k)"; }
