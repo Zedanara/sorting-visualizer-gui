@@ -11,6 +11,8 @@
 #include "sv/sorting/InsertionSort.hpp"
 #include "sv/sorting/MergeSort.hpp"
 #include "sv/sorting/QuickSort.hpp"
+#include "sv/sorting/HeapSort.hpp"
+#include "sv/sorting/CountingSort.hpp"
 #include <memory>
 
 int main() {
@@ -51,7 +53,10 @@ int main() {
     const double stepDelay = 0.05;
 
 // Lista dostępnych algorytmów do menu
-        const char* algorithmNames[] = { "Bubble Sort", "Insertion Sort", "Merge Sort", "Quick Sort" };
+const char* algorithmNames[] = { 
+            "Bubble Sort", "Insertion Sort", "Merge Sort", 
+            "Quick Sort", "Heap Sort", "Counting Sort" 
+        };
         static int currentAlgoIndex = 0;
 
     while (!glfwWindowShouldClose(window)) {
@@ -78,7 +83,7 @@ int main() {
         ImGui::Begin("Panel Wizualizacji", nullptr, ImGuiWindowFlags_NoCollapse);
 
         // Wybór algorytmu
-        ImGui::SetNextItemWidth(200);
+ImGui::SetNextItemWidth(200);
         if (ImGui::Combo("Wybierz algorytm", &currentAlgoIndex, algorithmNames, IM_ARRAYSIZE(algorithmNames))) {
             if (currentAlgoIndex == 0) {
                 currentAlgorithm = std::make_unique<sv::sorting::BubbleSort>();
@@ -88,6 +93,10 @@ int main() {
                 currentAlgorithm = std::make_unique<sv::sorting::MergeSort>();
             } else if (currentAlgoIndex == 3) {
                 currentAlgorithm = std::make_unique<sv::sorting::QuickSort>();
+            } else if (currentAlgoIndex == 4) {
+                currentAlgorithm = std::make_unique<sv::sorting::HeapSort>();
+            } else if (currentAlgoIndex == 5) {
+                currentAlgorithm = std::make_unique<sv::sorting::CountingSort>();
             }
             currentAlgorithm->init(testData);
             isSorting = false;
