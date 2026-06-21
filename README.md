@@ -53,7 +53,11 @@ No external GUI toolkit installer, no Qt runtime, no database engine — the ent
 
 The main window is split into three panels: algorithm controls and the live bar-chart visualization on the left, the persistent operation history on the top right, and the educational algorithm panel (description, complexity, pros/cons, step walkthrough, and source code) on the bottom right.
 
-*(Insert screenshots here — e.g. `docs/screenshot_bubble_sort.png`, `docs/screenshot_sieve.png`, `docs/screenshot_history.png`)*
+**Main Visualization Panel (Bubble Sort)**
+![Bubble Sort Visualization](docs/screenshot_bubble.png)
+
+**Educational Panel & Sieve of Eratosthenes**
+![Sieve of Eratosthenes](docs/screenshot_sieve.png)
 
 ---
 
@@ -130,6 +134,7 @@ sorting-visualizer-gui/
 ├── CMakeLists.txt
 ├── README.md
 ├── LICENSE
+├── history.txt                     # persisted run history (generated at runtime)
 │
 ├── external/
 │   └── imgui/                          # Dear ImGui core + GLFW/OpenGL3 backends
@@ -137,7 +142,6 @@ sorting-visualizer-gui/
 ├── include/sv/
 │   │
 │   ├── core/
-│   │   ├── App.hpp                     # main loop owner, ties all subsystems together
 │   │   ├── Localization.hpp            # PL/EN string table + tr(key) lookup
 │   │   └── Theme.hpp                   # ImGuiStyle colors, rounding, fonts
 │   │
@@ -171,14 +175,14 @@ sorting-visualizer-gui/
 │   └── utils/
 │
 └── data/
-    └── history.txt                     # persisted run history (generated at runtime)
+    
 ```
 
 ### Module responsibilities
 
 | Module | Responsibility | Key design decision |
 |---|---|---|
-| `core/` | Owns the GLFW window, the ImGui context, and the main loop | `App` is the only class that knows about *every* other module — all dependencies flow inward to it, never sideways between modules |
+| `core/` | Owns the GLFW window, the ImGui context, and the main loop directly inside main.cpp
 | `sorting/` | Algorithm implementations | All implement `ISortAlgorithm`; polymorphism replaces `switch`/`if-else` on algorithm type |
 | `math_algs/` | Binary Search, Sieve of Eratosthenes | Same step-based pattern as `sorting/`, kept in a separate namespace since they aren't sorts |
 | `database/` | Reads/writes/validates `history.txt` | **Zero dependency on ImGui or rendering code** — operates purely on `std::vector<HistoryEntry>` and `std::ifstream`/`std::ofstream`, which keeps it independently testable |
