@@ -12,11 +12,12 @@ namespace sv::utils {
         std::string pros;
         std::string cons;
         std::string useCases;
+        std::string stepByStepExample;
+        std::string cppCode;
     };
 
     class AlgorithmInfo {
     public:
-        // Zwraca pełne informacje o algorytmie w wybranym języku
         static AlgoDetails getDetails(const std::string& algoName, sv::core::Language lang);
     };
 
