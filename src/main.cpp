@@ -13,6 +13,8 @@
 #include "sv/sorting/QuickSort.hpp"
 #include "sv/sorting/HeapSort.hpp"
 #include "sv/sorting/CountingSort.hpp"
+#include "sv/math_algs/BinarySearch.hpp"
+#include "sv/math_algs/SieveOfEratosthenes.hpp"
 #include <memory>
 
 int main() {
@@ -53,9 +55,10 @@ int main() {
     const double stepDelay = 0.05;
 
 // Lista dostępnych algorytmów do menu
-const char* algorithmNames[] = { 
+        const char* algorithmNames[] = { 
             "Bubble Sort", "Insertion Sort", "Merge Sort", 
-            "Quick Sort", "Heap Sort", "Counting Sort" 
+            "Quick Sort", "Heap Sort", "Counting Sort",
+            "Binary Search", "Sito Eratostenesa"
         };
         static int currentAlgoIndex = 0;
 
@@ -85,21 +88,43 @@ const char* algorithmNames[] = {
         // Wybór algorytmu
 ImGui::SetNextItemWidth(200);
         if (ImGui::Combo("Wybierz algorytm", &currentAlgoIndex, algorithmNames, IM_ARRAYSIZE(algorithmNames))) {
-            if (currentAlgoIndex == 0) {
-                currentAlgorithm = std::make_unique<sv::sorting::BubbleSort>();
-            } else if (currentAlgoIndex == 1) {
-                currentAlgorithm = std::make_unique<sv::sorting::InsertionSort>();
-            } else if (currentAlgoIndex == 2) {
-                currentAlgorithm = std::make_unique<sv::sorting::MergeSort>();
-            } else if (currentAlgoIndex == 3) {
-                currentAlgorithm = std::make_unique<sv::sorting::QuickSort>();
-            } else if (currentAlgoIndex == 4) {
-                currentAlgorithm = std::make_unique<sv::sorting::HeapSort>();
-            } else if (currentAlgoIndex == 5) {
-                currentAlgorithm = std::make_unique<sv::sorting::CountingSort>();
-            }
+            if (currentAlgoIndex == 0) currentAlgorithm = std::make_unique<sv::sorting::BubbleSort>();
+            else if (currentAlgoIndex == 1) currentAlgorithm = std::make_unique<sv::sorting::InsertionSort>();
+            else if (currentAlgoIndex == 2) currentAlgorithm = std::make_unique<sv::sorting::MergeSort>();
+            else if (currentAlgoIndex == 3) currentAlgorithm = std::make_unique<sv::sorting::QuickSort>();
+            else if (currentAlgoIndex == 4) currentAlgorithm = std::make_unique<sv::sorting::HeapSort>();
+            else if (currentAlgoIndex == 5) currentAlgorithm = std::make_unique<sv::sorting::CountingSort>();
+            else if (currentAlgoIndex == 6) currentAlgorithm = std::make_unique<sv::math_algs::BinarySearch>();
+            else if (currentAlgoIndex == 7) currentAlgorithm = std::make_unique<sv::math_algs::SieveOfEratosthenes>();
+            
             currentAlgorithm->init(testData);
             isSorting = false;
+        }
+
+        // --- Specjalny UI dla algorytmów matematycznych ---
+        if (auto bs = dynamic_cast<sv::math_algs::BinarySearch*>(currentAlgorithm.get())) {
+            int target = bs->getTarget();
+            ImGui::SetNextItemWidth(150);
+            if (ImGui::InputInt("Szukana wartosc", &target)) {
+                bs->setTarget(target);
+                bs->init(testData); // Restartujemy z nowym celem
+                isSorting = false;
+            }
+            if (bs->isFinished()) {
+                if (bs->isFound()) ImGui::TextColored(ImVec4(0, 1, 0, 1), "Znaleziono na indeksie %d!", bs->getHighlightedIndices().first);
+                else ImGui::TextColored(ImVec4(1, 0, 0, 1), "Nie znaleziono wartosci!");
+            }
+        }
+        else if (auto sieve = dynamic_cast<sv::math_algs::SieveOfEratosthenes*>(currentAlgorithm.get())) {
+            int limit = sieve->getLimit();
+            ImGui::SetNextItemWidth(150);
+            if (ImGui::InputInt("Gorna granica (max)", &limit)) {
+                if (limit < 2) limit = 2;
+                if (limit > 500) limit = 500; // Zabezpieczenie wizualne
+                sieve->setLimit(limit);
+                sieve->init(testData);
+                isSorting = false;
+            }
         }
 
         ImGui::Separator();
@@ -130,8 +155,12 @@ ImGui::SetNextItemWidth(200);
 
         ImGui::Separator();
 
-        // Rysowanie
-        sv::core::Visualizer::drawBars(currentAlgorithm->getData(), currentAlgorithm->getHighlightedIndices());
+        // Renderowanie odpowiedniego widoku
+        if (currentAlgoIndex == 7) {
+            sv::core::Visualizer::drawGrid(currentAlgorithm->getData(), currentAlgorithm->getHighlightedIndices());
+        } else {
+            sv::core::Visualizer::drawBars(currentAlgorithm->getData(), currentAlgorithm->getHighlightedIndices());
+        }
 
         ImGui::End();
         // -----------------------------

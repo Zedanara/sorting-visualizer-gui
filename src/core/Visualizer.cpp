@@ -1,5 +1,7 @@
 #include "sv/core/Visualizer.hpp"
 #include "imgui.h"
+#include <string>
+#include <algorithm>
 
 namespace sv::core {
 
@@ -46,6 +48,45 @@ namespace sv::core {
 
         // Przesunięcie kursora ImGui pod obszar rysowania
         ImGui::Dummy(canvas_size); 
+    }
+
+    void Visualizer::drawGrid(const std::vector<int>& data, std::pair<int, int> highlighted) {
+        if (data.size() <= 2) return;
+
+        ImDrawList* draw_list = ImGui::GetWindowDrawList();
+        ImVec2 p_min = ImGui::GetCursorScreenPos();
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+
+        int cols = 10; // 10 kolumn w siatce
+        int elements = data.size() - 2; // Ignorujemy 0 i 1
+        int rows = (elements + cols - 1) / cols;
+        
+        float cell_size = std::min(avail.x / cols, avail.y / rows) - 6.0f;
+        if (cell_size < 20.0f) cell_size = 20.0f;
+
+        for (size_t i = 2; i < data.size(); ++i) {
+            int c = (i - 2) % cols;
+            int r = (i - 2) / cols;
+
+            ImVec2 p1 = ImVec2(p_min.x + c * (cell_size + 6), p_min.y + r * (cell_size + 6));
+            ImVec2 p2 = ImVec2(p1.x + cell_size, p1.y + cell_size);
+
+            ImU32 color = IM_COL32(38, 76, 153, 255); // Domyślny (niebieski)
+            if (data[i] < 0) color = IM_COL32(60, 60, 65, 255); // Wykreślone (szary)
+            
+            if ((int)i == highlighted.first) color = IM_COL32(0, 255, 0, 255); // Aktualna l. pierwsza (zielony)
+            else if ((int)i == highlighted.second) color = IM_COL32(255, 200, 0, 255); // Aktualna wielokrotność (żółty)
+
+            draw_list->AddRectFilled(p1, p2, color, 4.0f);
+
+            // Rysowanie liczby w środku kwadratu
+            std::string text = std::to_string(std::abs(data[i]));
+            ImVec2 text_size = ImGui::CalcTextSize(text.c_str());
+            ImVec2 text_pos = ImVec2(p1.x + (cell_size - text_size.x) * 0.5f, p1.y + (cell_size - text_size.y) * 0.5f);
+            draw_list->AddText(text_pos, IM_COL32(255, 255, 255, 255), text.c_str());
+        }
+
+        ImGui::Dummy(ImVec2(avail.x, rows * (cell_size + 6))); 
     }
 
 }
