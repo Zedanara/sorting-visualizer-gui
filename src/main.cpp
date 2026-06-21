@@ -5,6 +5,9 @@
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <random>
+#include <numeric>
+#include <algorithm>
 
 #include "sv/core/Theme.hpp"
 #include "sv/core/Visualizer.hpp"
@@ -21,6 +24,24 @@
 #include "sv/database/HistoryDatabase.hpp"
 
 using namespace sv::core;
+
+void generateData(std::vector<int>& data, int size, int presetType) {
+    data.resize(size);
+    if (presetType == 0) { // Losowe (Random)
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_int_distribution<int> dist(10, 100);
+        for (int& x : data) x = dist(rng);
+    } else if (presetType == 1) { // Posortowane (Sorted)
+        std::iota(data.begin(), data.end(), 10);
+    } else if (presetType == 2) { // Odwrotnie (Reversed)
+        std::iota(data.begin(), data.end(), 10);
+        std::reverse(data.begin(), data.end());
+    } else if (presetType == 3) { // Z duplikatami (Duplicates)
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_int_distribution<int> dist(10, 20); // Mały zakres = dużo duplikatów
+        for (int& x : data) x = dist(rng);
+    }
+}
 
 int main() {
     if (!glfwInit()) {
@@ -42,6 +63,7 @@ int main() {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
+    io.IniFilename = nullptr; 
     
     sv::core::applyDarkTheme();
 
@@ -49,7 +71,9 @@ int main() {
     ImGui_ImplOpenGL3_Init("#version 130");
 
     // --- Inicjalizacja Danych i Bazy ---
-    std::vector<int> testData = {45, 12, 89, 33, 2, 67, 90, 15, 23, 77, 56, 8, 99, 41, 62};
+    std::vector<int> testData;
+    int currentArraySize = 15;
+    generateData(testData, currentArraySize, 0); 
     
     sv::database::HistoryDatabase historyDb("history.txt");
     bool showStartupPopup = historyDb.load();
@@ -61,7 +85,7 @@ int main() {
 
     bool isSorting = false;
     double lastStepTime = 0.0;
-    const double stepDelay = 0.05;
+    int speedDelayMs = 50;
 
     const char* algorithmNames[] = { 
         "Bubble Sort", "Insertion Sort", "Merge Sort", 
@@ -80,7 +104,7 @@ int main() {
         // --- Logika aktualizacji kroków i zapisu do bazy ---
         if (isSorting && !currentAlgorithm->isFinished()) {
             double currentTime = ImGui::GetTime();
-            if (currentTime - lastStepTime >= stepDelay) {
+            if (currentTime - lastStepTime >= (speedDelayMs / 1000.0)) {
                 currentAlgorithm->step();
                 lastStepTime = currentTime;
             }
@@ -121,13 +145,15 @@ int main() {
         ImGui::SetNextWindowSize(ImVec2(850, 690), ImGuiCond_FirstUseEver);
         ImGui::Begin(Localization::tr("window_main").c_str(), nullptr, ImGuiWindowFlags_NoCollapse);
 
-        // Przełącznik Języka
+        // --- Zmiana Języka ---
         if (ImGui::Button(Localization::getLanguage() == Language::PL ? "Jezzyk: Polski (Zmien na EN)" : "Language: English (Change to PL)")) {
             Localization::setLanguage(Localization::getLanguage() == Language::PL ? Language::EN : Language::PL);
         }
         ImGui::Separator();
+        ImGui::Spacing();
 
-        ImGui::SetNextItemWidth(200);
+        // --- Wybór Algorytmu ---
+        ImGui::SetNextItemWidth(250);
         if (ImGui::Combo(Localization::tr("combo_algo").c_str(), &currentAlgoIndex, algorithmNames, IM_ARRAYSIZE(algorithmNames))) {
             if (currentAlgoIndex == 0) currentAlgorithm = std::make_unique<sv::sorting::BubbleSort>();
             else if (currentAlgoIndex == 1) currentAlgorithm = std::make_unique<sv::sorting::InsertionSort>();
@@ -143,6 +169,7 @@ int main() {
             wasRecorded = false; 
         }
 
+        // KONTROLKI SPECJALNE (Binary Search / Sieve)
         if (auto bs = dynamic_cast<sv::math_algs::BinarySearch*>(currentAlgorithm.get())) {
             int target = bs->getTarget();
             ImGui::SetNextItemWidth(150);
@@ -169,10 +196,56 @@ int main() {
                 wasRecorded = false;
             }
         }
+        ImGui::Spacing();
 
+        // --- Ustawienia Wizualizacji (Suwaki) ---
+        ImGui::SetNextItemWidth(250);
+        ImGui::SliderInt(Localization::getLanguage() == Language::PL ? "Predkosc animacji (ms)" : "Animation Speed (ms)", &speedDelayMs, 1, 500);
+        
+        ImGui::SetNextItemWidth(250);
+        if (ImGui::SliderInt(Localization::getLanguage() == Language::PL ? "Rozmiar tablicy" : "Array Size", &currentArraySize, 5, 100)) {
+            generateData(testData, currentArraySize, 0);
+            currentAlgorithm->init(testData);
+            isSorting = false;
+            wasRecorded = false;
+        }
+        ImGui::Spacing();
+
+        // --- Presety Danych ---
+        ImGui::Text("%s", Localization::getLanguage() == Language::PL ? "Szybkie generowanie danych:" : "Data presets:");
+        if (ImGui::Button(Localization::getLanguage() == Language::PL ? "Losowe" : "Random")) {
+            generateData(testData, currentArraySize, 0);
+            currentAlgorithm->init(testData);
+            isSorting = false;
+            wasRecorded = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(Localization::getLanguage() == Language::PL ? "Posortowane" : "Sorted")) {
+            generateData(testData, currentArraySize, 1);
+            currentAlgorithm->init(testData);
+            isSorting = false;
+            wasRecorded = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(Localization::getLanguage() == Language::PL ? "Odwrotnie" : "Reversed")) {
+            generateData(testData, currentArraySize, 2);
+            currentAlgorithm->init(testData);
+            isSorting = false;
+            wasRecorded = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(Localization::getLanguage() == Language::PL ? "Z duplikatami" : "Duplicates")) {
+            generateData(testData, currentArraySize, 3);
+            currentAlgorithm->init(testData);
+            isSorting = false;
+            wasRecorded = false;
+        }
+        
         ImGui::Separator();
+        ImGui::Spacing();
 
-        if (ImGui::Button(Localization::tr("btn_start").c_str())) {
+        // --- Sterowanie Głównym Cyklem (Start/Pauza) ---
+        if (ImGui::Button(Localization::tr("btn_start").c_str(), ImVec2(120, 0))) {
             isSorting = true;
             if (currentAlgorithm->isFinished()) {
                 currentAlgorithm->init(testData);
@@ -181,16 +254,18 @@ int main() {
             lastStepTime = ImGui::GetTime();
         }
         ImGui::SameLine();
-        if (ImGui::Button(Localization::tr("btn_pause").c_str())) {
+        if (ImGui::Button(Localization::tr("btn_pause").c_str(), ImVec2(100, 0))) {
             isSorting = false;
         }
         ImGui::SameLine();
-        if (ImGui::Button(Localization::tr("btn_reset").c_str())) {
+        if (ImGui::Button(Localization::tr("btn_reset").c_str(), ImVec2(100, 0))) {
             isSorting = false;
             currentAlgorithm->init(testData);
             wasRecorded = false;
         }
+        ImGui::Spacing();
 
+        // --- Statystyki ---
         ImGui::Text("%s: %s | %s: %s", 
             Localization::tr("lbl_active").c_str(), currentAlgorithm->getName().c_str(), 
             Localization::tr("lbl_complexity").c_str(), currentAlgorithm->getComplexityAverage().c_str());
@@ -201,13 +276,13 @@ int main() {
 
         ImGui::Separator();
 
+        // --- Rysowanie ---
         if (currentAlgoIndex == 7) {
             sv::core::Visualizer::drawGrid(currentAlgorithm->getData(), currentAlgorithm->getHighlightedIndices());
         } else {
             sv::core::Visualizer::drawBars(currentAlgorithm->getData(), currentAlgorithm->getHighlightedIndices());
         }
         ImGui::End();
-
 
         // =========================================================
         // 2. OKNO BAZY DANYCH (Góra Prawa)
@@ -238,7 +313,6 @@ int main() {
         }
         ImGui::End();
 
-
         // =========================================================
         // 3. OKNO TEORII ALGORYTMU (Dół Prawa)
         // =========================================================
@@ -264,6 +338,17 @@ int main() {
         
         ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.4f, 1.0f), Localization::getLanguage() == Language::PL ? "Najgorszy przypadek:" : "Worst Case:");
         ImGui::TextWrapped("%s", details.worstCase.c_str());
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        
+        if (ImGui::CollapsingHeader(Localization::getLanguage() == Language::PL ? "Przyklad krok po kroku" : "Step-by-step example")) {
+            ImGui::TextWrapped("%s", details.stepByStepExample.c_str());
+        }
+        
+        if (ImGui::CollapsingHeader(Localization::getLanguage() == Language::PL ? "Kod w C++" : "C++ Code")) {
+            ImGui::TextUnformatted(details.cppCode.c_str()); // Używamy Unformatted aby nie popsuć spacji i formatowania
+        }
 
         ImGui::End();
 
