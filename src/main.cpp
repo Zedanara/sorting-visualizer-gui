@@ -5,6 +5,8 @@
 #include <iostream>
 #include <vector>
 #include <memory>
+#include <random>
+#include <numeric>
 
 #include "sv/core/Theme.hpp"
 #include "sv/core/Visualizer.hpp"
@@ -21,6 +23,24 @@
 #include "sv/database/HistoryDatabase.hpp"
 
 using namespace sv::core;
+
+void generateData(std::vector<int>& data, int size, int presetType) {
+    data.resize(size);
+    if (presetType == 0) { // Losowe (Random)
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_int_distribution<int> dist(10, 100);
+        for (int& x : data) x = dist(rng);
+    } else if (presetType == 1) { // Posortowane (Sorted)
+        std::iota(data.begin(), data.end(), 10);
+    } else if (presetType == 2) { // Odwrotnie (Reversed)
+        std::iota(data.begin(), data.end(), 10);
+        std::reverse(data.begin(), data.end());
+    } else if (presetType == 3) { // Z duplikatami (Duplicates)
+        std::mt19937 rng(std::random_device{}());
+        std::uniform_int_distribution<int> dist(10, 20); // Mały zakres = dużo duplikatów
+        for (int& x : data) x = dist(rng);
+    }
+}
 
 int main() {
     if (!glfwInit()) {
@@ -49,7 +69,9 @@ int main() {
     ImGui_ImplOpenGL3_Init("#version 130");
 
     // --- Inicjalizacja Danych i Bazy ---
-    std::vector<int> testData = {45, 12, 89, 33, 2, 67, 90, 15, 23, 77, 56, 8, 99, 41, 62};
+    std::vector<int> testData;
+    int currentArraySize = 15;
+    generateData(testData, currentArraySize, 0); // Generujemy startowe losowe dane
     
     sv::database::HistoryDatabase historyDb("history.txt");
     bool showStartupPopup = historyDb.load();
@@ -61,7 +83,7 @@ int main() {
 
     bool isSorting = false;
     double lastStepTime = 0.0;
-    const double stepDelay = 0.05;
+    int speedDelayMs = 50;
 
     const char* algorithmNames[] = { 
         "Bubble Sort", "Insertion Sort", "Merge Sort", 
@@ -80,7 +102,7 @@ int main() {
         // --- Logika aktualizacji kroków i zapisu do bazy ---
         if (isSorting && !currentAlgorithm->isFinished()) {
             double currentTime = ImGui::GetTime();
-            if (currentTime - lastStepTime >= stepDelay) {
+            if (currentTime - lastStepTime >= (speedDelayMs / 1000.0)) {
                 currentAlgorithm->step();
                 lastStepTime = currentTime;
             }
@@ -128,46 +150,43 @@ int main() {
         ImGui::Separator();
 
         ImGui::SetNextItemWidth(200);
-        if (ImGui::Combo(Localization::tr("combo_algo").c_str(), &currentAlgoIndex, algorithmNames, IM_ARRAYSIZE(algorithmNames))) {
-            if (currentAlgoIndex == 0) currentAlgorithm = std::make_unique<sv::sorting::BubbleSort>();
-            else if (currentAlgoIndex == 1) currentAlgorithm = std::make_unique<sv::sorting::InsertionSort>();
-            else if (currentAlgoIndex == 2) currentAlgorithm = std::make_unique<sv::sorting::MergeSort>();
-            else if (currentAlgoIndex == 3) currentAlgorithm = std::make_unique<sv::sorting::QuickSort>();
-            else if (currentAlgoIndex == 4) currentAlgorithm = std::make_unique<sv::sorting::HeapSort>();
-            else if (currentAlgoIndex == 5) currentAlgorithm = std::make_unique<sv::sorting::CountingSort>();
-            else if (currentAlgoIndex == 6) currentAlgorithm = std::make_unique<sv::math_algs::BinarySearch>();
-            else if (currentAlgoIndex == 7) currentAlgorithm = std::make_unique<sv::math_algs::SieveOfEratosthenes>();
-            
+        ImGui::SliderInt(Localization::getLanguage() == Language::PL ? "Predkosc (ms)" : "Speed (ms)", &speedDelayMs, 1, 500);
+        
+        ImGui::SetNextItemWidth(200);
+        if (ImGui::SliderInt(Localization::getLanguage() == Language::PL ? "Rozmiar" : "Size", &currentArraySize, 5, 100)) {
+            generateData(testData, currentArraySize, 0);
             currentAlgorithm->init(testData);
             isSorting = false;
-            wasRecorded = false; 
+            wasRecorded = false;
         }
 
-        if (auto bs = dynamic_cast<sv::math_algs::BinarySearch*>(currentAlgorithm.get())) {
-            int target = bs->getTarget();
-            ImGui::SetNextItemWidth(150);
-            if (ImGui::InputInt(Localization::tr("input_target").c_str(), &target)) {
-                bs->setTarget(target);
-                bs->init(testData); 
-                isSorting = false;
-                wasRecorded = false;
-            }
-            if (bs->isFinished()) {
-                if (bs->isFound()) ImGui::TextColored(ImVec4(0, 1, 0, 1), "%s %d!", Localization::tr("msg_found").c_str(), bs->getHighlightedIndices().first);
-                else ImGui::TextColored(ImVec4(1, 0, 0, 1), "%s", Localization::tr("msg_not_found").c_str());
-            }
+        ImGui::Text(Localization::getLanguage() == Language::PL ? "Presety danych:" : "Data presets:");
+        if (ImGui::Button(Localization::getLanguage() == Language::PL ? "Losowe" : "Random")) {
+            generateData(testData, currentArraySize, 0);
+            currentAlgorithm->init(testData);
+            isSorting = false;
+            wasRecorded = false;
         }
-        else if (auto sieve = dynamic_cast<sv::math_algs::SieveOfEratosthenes*>(currentAlgorithm.get())) {
-            int limit = sieve->getLimit();
-            ImGui::SetNextItemWidth(150);
-            if (ImGui::InputInt(Localization::tr("input_limit").c_str(), &limit)) {
-                if (limit < 2) limit = 2;
-                if (limit > 500) limit = 500; 
-                sieve->setLimit(limit);
-                sieve->init(testData);
-                isSorting = false;
-                wasRecorded = false;
-            }
+        ImGui::SameLine();
+        if (ImGui::Button(Localization::getLanguage() == Language::PL ? "Posortowane" : "Sorted")) {
+            generateData(testData, currentArraySize, 1);
+            currentAlgorithm->init(testData);
+            isSorting = false;
+            wasRecorded = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(Localization::getLanguage() == Language::PL ? "Odwrotnie" : "Reversed")) {
+            generateData(testData, currentArraySize, 2);
+            currentAlgorithm->init(testData);
+            isSorting = false;
+            wasRecorded = false;
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(Localization::getLanguage() == Language::PL ? "Duplikaty" : "Duplicates")) {
+            generateData(testData, currentArraySize, 3);
+            currentAlgorithm->init(testData);
+            isSorting = false;
+            wasRecorded = false;
         }
 
         ImGui::Separator();
